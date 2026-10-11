@@ -218,3 +218,20 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# Real mail and personal data: never in git
+*.eml
+*.mbox
+data/
+exports/
+
+# Secrets
+.env
+*.key
+*.pem
+
+# Terraform (for later, when Azure comes in)
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfvars
