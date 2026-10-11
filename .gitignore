@@ -235,3 +235,6 @@ exports/
 *.tfstate
 *.tfstate.*
 *.tfvars
+
+# buildproof raw timeline: stays on the server
+evidence/
