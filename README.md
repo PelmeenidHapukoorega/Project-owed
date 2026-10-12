@@ -61,7 +61,7 @@ My current goal is to have the server working and automating emails like clockwo
 
 ## Proton mail bridge on the server
 
-Proton encrypts everything so normal mail programs and scripts, bridge fixes that, runs on my server and decrypts my mail locally and makes it available like ordinary mail server but onl on the server itself as localhost so nothing is exposed to my network.
+Proton encrypts everything so normal mail programs and scripts cant read it directly, bridge fixes that, runs on my server and decrypts my mail locally and makes it available like ordinary mail server but only on the server itself as localhost so nothing is exposed to my network.
 
 Installed it from protons official .deb package. Needed a place to store its login, so i set up `pass` with a gpg key. The key has no passphrase because bridge doesnt work with one so the server login itself is the protection.
 
@@ -75,3 +75,19 @@ Next up is the mail sorter, small python script connecting to the bridge and sor
 
 ## Mail sorter
 
+Initially i had proton set with different labels and folders for filtering, however it got difficult to filter emails properly and it couldnt read the body of the emails either which prompted me going for the mail server since then i could create scripts that would solve this issue for me since filtering with sieve wasnt good enough.
+
+It kept missing stuff or sorting junk into wrong place. 
+
+Now that the bridge was running, my script could read full emails so i went about it properly: Look at my real mail first, then write rules based on that instead of guessing keywords. 
+
+
+The plan is layered rules from most certain to least: bulk mail (has an unsubscribe header) goes to job listings, then known senders like cv keskus, cv.ee, linkedin and hiring systems, then phrases in the body. Anything the script isnt sure about goes into a review folder instead of being guessed since wrong sorting is worse than no sorting. I also want to hand label a bunch of emails and measure how many the script gets right before it moves anything.
+
+First script just connects to bridge and lists my folders. It upgrades the connection with `starttls` before logging in so the password never goes over unencrypted. Certificate verification is off because bridge uses its own self signed certificate which is fine here only because the connection never leaves localhost (yet), so theres nobody in the middle to intercept it.
+
+Bridge login lives in a `.env` file thats gitignored. Wrote it with an editor instead of a command because my build log tool records every command i type, so an `echo` with the password would end up in my history.
+
+Second script exports the last 60 days of my inbox and archive into a csv: date, sender, subject, whether its bulk mail and the first 300 characters of the body. It opens folders read only and fetches with `BODY.PEEK` so it doesnt mark anything as read, it looks without touching. The csv stays on the server in a gitignored data folder since its my personal mail.
+
+Next up: go through the csv, find the patterns for confirmations, rejections and real feedback, and turn them into the first sorting rules.
