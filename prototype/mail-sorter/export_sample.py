@@ -47,7 +47,7 @@ with imaplib.IMAP4(host, port) as mail, open(OUTPUT, "w", newline="", encoding="
         mail.select(folder, readonly=True)
         status, data = mail.search(None, "SINCE", SINCE)
         for num in data[0].split():
-            status, msg_data = mail.fetch(num,  "(BODY.PEEKS[])")
+            status, msg_data = mail.fetch(num,  "(BODY.PEEK[])")
             msg = email.message_from_bytes(msg_data[0][1])
             writer.writerow([
                 folder,
