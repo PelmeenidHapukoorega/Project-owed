@@ -8,7 +8,7 @@ from email.header import decode_header, make_header
 
 from dotenv import load_dotenv
 
-load_dotenv
+load_dotenv()
 
 host = os.environ["BRIDGE_HOST"]
 port = int(os.environ["BRIDGE_PORT"])
