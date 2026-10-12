@@ -21,7 +21,7 @@ The takeaway from this is the following: After 6 hours of interviews and case st
 
 So what did she do? She used GDPR data access request to get her interview records from the company which then showed that the entire panel had voted to hire her and that a single directors note about her career history was what blocked it, the blocker was that she worked for a startup at one point in her career.
 
-Another similar case that happend in germany and it went to labour court and the company had to pay them around 5000 Eur since they handled that data request poorly.
+Another similar case happend in germany and it went to labour court and the company had to pay them around 5000 Eur since they handled that data request poorly.
 
 This gave me an idea to expand on it: In the EU you are legally entitled to the data a company holds on you, even if you havent worked there, including recruiter notes and scores. Amanda used exactly that: Article 15 of GDPR in the EU.
 
@@ -91,3 +91,87 @@ Bridge login lives in a `.env` file thats gitignored. Wrote it with an editor in
 Second script exports the last 60 days of my inbox and archive into a csv: date, sender, subject, whether its bulk mail and the first 300 characters of the body. It opens folders read only and fetches with `BODY.PEEK` so it doesnt mark anything as read, it looks without touching. The csv stays on the server in a gitignored data folder since its my personal mail.
 
 Next up: go through the csv, find the patterns for confirmations, rejections and real feedback, and turn them into the first sorting rules.
+
+Went through the CSV and it was just what i feared, it was mostly random mail and only 2 job related emails showed up. Turned out the script only looked at inbox and archive, and my job mail had been moved around into other folders by protons old filters.
+
+2 more things came up as well, most previews were empty because a lot of emails are html only and the script only read plain text. And the unsubscribe header wasnt reliable, plenty of marketing came through as not bulk so it can only ever be 1 signal and not the deciding one.
+
+Changed the export to read from "All mail" instead, which has every single email not matter where its filed and widened it to the last 90 days.
+
+For html only emails it now strips out the style and script blocks first and then the rest of the tags so whats left is the text that a person would actually see. 
+
+The ordxer here matters as well, if i were to strip the tags first the css stays behind and fills up the preview instead of the actual message.
+
+After the changes i run export again and went through it again and find the actual patterns.
+
+New export showed 2127 emails in 90 days, too many so needed to narrow it down first.
+
+Made a script to make narrow it down properly with keywords specifically when you get a positive answer, automated reply, the "consideration" etc etc. 
+
+Ran the script on the server to see how much it would narrow it down. Script returned with 574 possible job emails out of 2127. 
+
+Needed to narrow it down further. So created a script that uses `parseaddr` which pulls plain email address out of sender, takes the part after `@` then counts how often each domain appears and prints the top 40. 
+
+///screenshot of hiring systems here////
+
+Linkedin at 495 out of 574 now i knew this was pretty much just noise, however somewhere in there are "application sent/ viewed" alert emails as well and maybe few rejections, needs its own breakdown by subject.
+
+However! Grouping by sender domain struck gold. Hiring systems only send application mail, so if an email comes from one of them i know its about a job i applied to therefore no guessing needed.
+
+However then i had an idea: what if i could make a script that would scan all my emails spanning back to the beginning, then check the list and group ALL hiring systems together?
+
+Full history would give me a much bigger and accurate list overall than just 90 days did and since i wanted to make script to read only headers and not full emails it would make scanning 10k+ emails practical.
+
+After running the script i got 92 candidate domains out of 32728 emails.
+
+Created hiring systems txt file on the server which holds the list of the hiring platforms, 1 domain per line, later the sorter would check every incoming email against it, if the sender ends with 1 of those domains its job mail.
+
+The script flags a domain if it looks like a hiring systems, like it has recruit, talent, career or jobs in it or its a known platform like teamtailor or personio or if the subject has application wording like "application" or "kandideeri". Reads it in batches of 500 instead of 1 by 1 and skips broken old headers instead of crashing on them.
+
+Went through the 92 by hand and sorted them into four groups: hiring platforms like teamtailor, smartrecruiters and teamdash that go into the list, job portals like cv keskus, cv.ee and linkedin that get their own rules, companies own career domains, and noise like job boards, banks, newsletters and shops that only matched because the subject happened to say "position" or "application".
+
+The list only holds the platform part of the domain, so teamtailor-mail.com instead of companyname.teamtailor-mail.com, because the full one would show exactly where i applied and the repo is public. Companies own career domains go into a separate file that git ignores for the same reason.
+
+The list grows over time. If an email comes from a domain thats not on the list but has application wording in it, it goes into a review folder, i check it and add the domain if its real.
+
+Set up the folders in proton that the sorter later files into:
+
+1. Job-Confirmations
+2. Job-Rejections
+3. Job-Feedback
+4. Job-Progress
+5. Job-Review
+
+Job-Noise was already there from my old proton filter and i kept it since it was already catching listings and portal spam fine.
+
+With the domain lists and folders in place the sorter now has everything it needs, who is sending (hiring systems, portal, company or unknown), what the subject says and what does the body say.
+
+Next was testing the scripts before letting it touch the mailbox itself.
+
+## Dry run tests
+
+Before letting the script move anything i built a dry run version. It goes through last 90 days (started applying close to 2 months ago but went for 3 months just to be sure), decides which folder each job email belongs in and writes the decisions in the csv with a reason next to it but doesnt move anything, that way i could check every decision against what i actually know happened.
+
+To make it easier i added `Remote-ssh` extension on VSC so i could create scripts better right on the server and access CSV in a better environment.
+
+Progress (i.e next round, interview invites, forms to fill in) got its own folder after the first runs because 1 email moving me to the next round landed in feedback instead.
+
+Thats basically thee stuff that needs action from me so it shouldnt get buried with everything else.
+
+Every decision comes with a reason like "confirmation in subject" or "rejection wording". When something lands in the wrong folder the reason tells me exactly which rule did it, so fixing it takes a minute instead of guessing through the code. 
+
+It also showed me when my edits hadnt actually gone in because the old reason texts were still showing up.
+
+First run had 20 emails in review. Most were fixable patterns: company career domains i hadnt listed, confirmation phrases in estonian and german i didnt have yet, my own replies getting sorted as if the company sent them, github "oauth application" emails tripping on the word application, and login codes landing in job noise.
+
+1 thank you for applying email got sorted as feedback because the body mentioned an interview in passing. So i changed the order: the subject says what the email is about, the body only mentions things, so subject rules get checked first.
+
+In order to tell a real recruiter reply from an automated email, i checked if it answers something i actually sent. Every email has a unique message id and a reply points back to it, so the script collects the ids of my sent emails and only counts something as a reply if it points to one of them.
+
+Automated confirmations are triggered by filling in a form, not by an email from me, so they never match. 
+
+Bug of the session: a missing comma between two noise phrases. Python doesnt complain about that, it just glues the two strings into one long string that never matches anything, so both rules quietly stopped working.
+
+After a few rounds the dry run matched what i know about my last 90 days: unclear emails went from 20 to 0 and every decision has a reason.
+
+Next step is running it for real so it actually moves mail into the folders.
