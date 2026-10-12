@@ -1,37 +1,32 @@
-# Setting up Project-owed with a gitleaks hook and Proton Mail Bridge as a user service
+# Project-owed build log: gitleaks hook, Proton Bridge service and first mail sorter scripts
 
 ## Intent
 
-I set up the Project-owed repo so it ignores mail data, secrets and terraform state [E002]. I added a gitleaks pre-commit hook, which closed issue #1 [E005]. The main piece was running Proton Mail Bridge on the server. In my words: "bridge runs natively with systemd, not docker because no official image and it handles my decrypted mail" [E011]. Also: "bridge needs pass with passphrase-free gpg key so the server login is the protection" [E012]. Along the way I kept a build log and README in the repo [E009, E021, E037, E051, E054].
+From the commit messages, I was setting up a repo that keeps mail data, secrets and terraform state out of git [E002]. I also wanted a gitleaks pre-commit hook [E005]. My notes say Proton Bridge should run natively under systemd, not docker, "because no official image and it handles my decrypted mail" [E011]. It should run as a user service with linger so it survives logout and reboots, and only listen on localhost [E048]. After that I started a mail sorter prototype. It connects to the bridge and lists folders [E083]. Then it does a read-only export of the last 60 days of mail to csv [E089]. The events don't say what the sorter will finally do with the mail [E089, E108].
 
 ## Build
 
-**Starting the repo and the pre-commit hook**
-I made the initial commit and then a commit to ignore mail data, secrets and terraform state [E001, E002]. My first try, `pre-commit-install`, failed with exit 127 [E003]. I retried a few seconds later with `pre-commit install`, and it worked [E004]. Then I committed the gitleaks pre-commit hook [E005]. After a `git pull` I ran `pre-commit install` again [E006, E007].
+**Setting up the repo and the gitleaks hook**
+I started with an initial commit and a gitignore for mail data, secrets and terraform state [E001, E002]. `pre-commit-install` failed with exit 127 [E003]. Right after that, `pre-commit install` worked, so that looks like the fix for the typo [E004]. I committed the gitleaks pre-commit hook, closing #1 [E005]. Then I ran `pre-commit install` again after a `git pull` [E006, E007].
 
-**Docs and prototype folder**
-I committed a build log and a prototype folder [E009]. Later I committed the prototype folder again and set the repo to ignore buildproof evidence [E013].
+**Build log and docs**
+I added a build log and a prototype folder [E009, E013]. The second of those commits also ignores buildproof evidence [E013]. I left a note to test what bp captures [E014]. Then I removed the old log and evidence folder with `rm BUILD_LOG.md` and `rm -r evidence` [E019, E020]. I committed a README intro [E021]. A command `p` failed with exit 127, and there's no retry in these events [E022].
 
-**Testing the capture tool**
-I left a note: "test: checking what bp captures" [E014]. After that I read the build log and removed it and the evidence folder with `rm BUILD_LOG.md` and `rm -r evidence` [E018, E019, E020]. This was probably cleanup after the test [E014, E020].
+**Getting the build log commit pushed**
+`git commit -m "docs: updated build log"` failed with exit 128 [E027]. The same command then ended with exit 130 [E029]. Next I ran `git config --global user.email "242280424+PelmeenidHapukoorega@users.noreply.github.com"` and `git commit --amend --reset-author --no-edit` [E030, E031]. So the problem was probably the author identity, but that's a guess [E027, E030]. After that, `git push` failed with exit 1 and `git pull` failed with exit 128 [E032, E033]. I fixed it with `git fetch` and `git reset --soft origin/main`, then committed again [E034, E035, E037, E038]. The next `git push` worked [E039].
 
-**Committing the build log, with failures**
-I committed a README intro and project story [E021]. Right after, a command `p` failed with exit 127 [E022]. It was probably a typo, and there was no retry in these events [E022]. I pulled, staged the log with `git add BUILD_LOG.md`, and ran `git commit -m "docs: updated build log"`, which failed with exit 128 [E024, E026, E027]. I ran the same commit again and it ended with exit 130 [E029]. Next I set `git config --global user.email "242280424+PelmeenidHapukoorega@users.noreply.github.com"` and ran `git commit --amend --reset-author --no-edit` [E030, E031]. That probably fixed the author identity on the commit [E030, E031].
+**Running Proton Bridge as a systemd user service**
+My notes say the bridge needs pass with a passphrase-free gpg key, "so the server login is the protection" [E012]. I looked at `cat ~/.config/systemd/user/protonmail-bridge.service` [E040]. Then I ran `systemctl --user daemon-reload` and `systemctl --user enable --now protonmail-bridge` [E042, E043]. `systemctl --user status protonmail-bridge` ended with exit 130, probably because I quit it by hand [E044]. I ran `sudo loginctl enable-linger virtualhermit` [E045]. I checked listening ports with `ss -tlnp | grep 127.0.0.1` and rebooted with `sudo reboot` [E046, E047]. The ss output isn't in the events [E046]. Afterwards I noted that the bridge runs as a user service with linger and only listens on localhost [E048]. I committed and pushed the build log and a README section on the bridge [E050, E052, E054, E056, E058].
 
-**Getting the push through**
-`git push` failed with exit 1 [E032]. Then `git pull` failed with exit 128 [E033]. I ran `git fetch` and `git reset --soft origin/main`, checked `git status`, and committed again with `git commit -m "docs: updated build log"` [E034, E035, E036, E038]. That made commit 8f5273d [E037]. Then `git push` succeeded [E039].
+**Making the Python venv**
+`cd ~/prototype/mail-sorter` failed with exit 1 because the path was wrong [E059]. I ended up in `~/Project-owed/prototype/mail-sorter` [E061]. I ran `touch python3 -m venv .venv` by mistake [E062]. That probably made empty files instead of a venv, and `source .venv/bin/activate` then failed with exit 1 [E063]. I cleaned up with `rm  python3 venv .venv` [E064]. `rm -- -m` failed with exit 1 [E065]. Then `python3 -m venv .venv` and `source .venv/bin/activate` both worked [E067, E068]. I edited `.env` and ran `pip install python-dotenv` [E069, E071].
 
-**Running the bridge as a systemd user service**
-I looked at the unit file with `cat ~/.config/systemd/user/protonmail-bridge.service` [E040]. I ran `systemctl --user daemon-reload` and then `systemctl --user enable --now protonmail-bridge` [E042, E043]. `systemctl --user status protonmail-bridge` ended with exit 130 [E044]. I probably quit it with Ctrl+C, but the events don't show that [E044]. I ran `sudo loginctl enable-linger virtualhermit` and checked listening ports with `ss -tlnp | grep 127.0.0.1` [E045, E046]. Then I ran `sudo reboot` [E047]. My note after that: "bridge runs as a systemd user service with linger so it survicves logout and reboots, only listens on localhost" [E048].
+**First script: listing folders**
+I wrote `list_folders.py` in nano [E072]. `python list_folders.py` failed with exit 1 [E073]. I ran `sed -i 's/\t/    /g' list_folders.py` to swap tabs for spaces, probably to fix an indentation error [E074]. It still failed with exit 1 [E075]. I checked the end of the file with `tail -6 list_folders.py` and edited it twice more [E076, E077, E078]. Then `python list_folders.py` worked [E079]. My note says the script "connects to bridge over starttls and lists folders; cert verification off for now because its localhost only" [E081]. I committed and pushed it [E084, E085]. Later, `python list_folders.py` from the repo root failed with exit 2 [E086]. The same command worked from the mail-sorter folder [E088].
 
-**Recording it**
-I committed and pushed the build log with the message "docs: build log, bridge running as service" [E049, E050, E051, E052]. After a `git pull`, commit 08aec51 updated the README with a Proton Bridge section [E053, E054].
+**Second script: exporting mail to csv**
+The export script came in with commit 7ebb5c8, "read only export of last 60 days of mail to csv", plus a merge commit [E089, E090]. I pulled it [E092]. `python export_sample.py` from the repo root failed with exit 2 [E093]. `cd ~/prototype/email-sorter` failed with exit 1 [E094]. `cd prototype/mail-sorter` worked [E095]. There, `python export_sample.py` failed with exit 1 [E096]. I checked the env keys with `cut -d= -f1 .env`, probably so I could see the names without printing the values [E098]. I also checked that `python list_folders.py` still worked [E099]. The commit "fix: missing brackets on load_dotenv" showed up right around a `git pull` [E100, E101]. After that, `python export_sample.py` still failed with exit 1 [E102]. The commit "fix: BODY_PEEK typo in fetch" then showed up around another `git pull` [E103, E104]. After that, `python export_sample.py` worked [E105]. I checked the output with `wc -l data/mail_sample.csv` [E106]. I looked through it with `python -c "import csv; [print(r['from'][:40].ljust(42), r['subject'][:70]) for r in csv.DictReader(open('data/mail_sample.csv', encoding='utf-8'))]" | less` [E107]. Last, I committed a README section on the mail sorter's progress and pulled [E108, E109, E111].
 
 ## Takeaway
 
-- The gitleaks pre-commit hook is committed and installed [E005, E007].
-- Proton Mail Bridge is enabled as a systemd user service, and linger is on [E043, E045]. My note says it survives logout and reboots and only listens on localhost [E048].
-- The events don't record any status check after the reboot [E047, E048].
-- The build log commit had a rough path. It failed with exit 128 and exit 130, the push failed with exit 1, and the pull failed with exit 128 [E027, E029, E032, E033]. A fetch, a soft reset and a new commit got it pushed [E034, E035, E038, E039].
-- The `p` failure (exit 127) has no retry in these events [E022].
-- Docs and the README are pushed up to the bridge service section [E052, E054].
+The gitleaks pre-commit hook is in and installed [E005, E007]. The bridge is set up as a systemd user service with linger, and my note says it only listens on localhost [E043, E045, E048]. The mail sorter can connect to the bridge and list folders [E079, E083]. It can also export recent mail to `data/mail_sample.csv` [E105, E106]. That took two fix commits [E101, E104]. Cert verification in the script is off "for now", so that's left to do [E081]. The failed `p` command has no retry in these events [E022]. These events don't show the actual sorting step yet [E108].
