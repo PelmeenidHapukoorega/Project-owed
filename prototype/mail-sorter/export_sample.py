@@ -1,9 +1,11 @@
 import csv
 import email
+import html
 import imaplib
 import os
-import ssl 
-from datetime import date, timedelta 
+import re
+import ssl
+from datetime import date, timedelta
 from email.header import decode_header, make_header
 
 from dotenv import load_dotenv
@@ -15,21 +17,35 @@ port = int(os.environ["BRIDGE_PORT"])
 user = os.environ["BRIDGE_USER"]
 password = os.environ["BRIDGE_PASS"]
 
-FOLDERS = ["INBOX", "Archive"]
-SINCE = (date.today() - timedelta(days=60)).strftime("%d-%b-%Y")
+FOLDERS = ['"All Mail"']
+SINCE = (date.today() - timedelta(days=90)).strftime("%d-%b-%Y")
 OUTPUT = "data/mail_sample.csv"
+
 
 def decode(value):
     return str(make_header(decode_header(value or "")))
 
+
 def body_preview(msg, length=300):
+    html_text = ""
     for part in msg.walk():
-        if part.get_content_type() == "text/plain":
-            payload = part.get_payload(decode=True) or b""
-            charset = part.get_content_charset() or "utf-8"
-            text = payload.decode(charset, errors="replace")
+        content_type = part.get_content_type()
+        if content_type not in ("text/plain", "text/html"):
+            continue
+        payload = part.get_payload(decode=True) or b""
+        charset = part.get_content_charset() or "utf-8"
+        text = payload.decode(charset, errors="replace")
+        if content_type == "text/plain":
             return " ".join(text.split())[:length]
-        return ""
+        if not html_text:
+            html_text = text
+    if html_text:
+        text = re.sub(r"<(style|script)[^>]*>.*?</\1>", " ", html_text, flags=re.S | re.I)
+        text = re.sub(r"<[^>]+>", " ", text)
+        text = html.unescape(text)
+        return " ".join(text.split())[:length]
+    return ""
+
 
 context = ssl.create_default_context()
 context.check_hostname = False
@@ -46,8 +62,10 @@ with imaplib.IMAP4(host, port) as mail, open(OUTPUT, "w", newline="", encoding="
     for folder in FOLDERS:
         mail.select(folder, readonly=True)
         status, data = mail.search(None, "SINCE", SINCE)
-        for num in data[0].split():
-            status, msg_data = mail.fetch(num,  "(BODY.PEEK[])")
+        message_ids = data[0].split()
+        print(f"{folder}: {len(message_ids)} emails to export")
+        for num in message_ids:
+            status, msg_data = mail.fetch(num, "(BODY.PEEK[])")
             msg = email.message_from_bytes(msg_data[0][1])
             writer.writerow([
                 folder,
