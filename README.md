@@ -58,3 +58,20 @@ Tested the buildproof tool, only captures commands run inside `~/Project-owed`.
 Proton bridge on the server is installed and credential store set up, logged in and mailbox now synced. Bridge service file is written but not enabled as of yet. 
 
 My current goal is to have the server working and automating emails like clockwork.
+
+## Proton mail bridge on the server
+
+Proton encrypts everything so normal mail programs and scripts, bridge fixes that, runs on my server and decrypts my mail locally and makes it available like ordinary mail server but onl on the server itself as localhost so nothing is exposed to my network.
+
+Installed it from protons official .deb package. Needed a place to store its login, so i set up `pass` with a gpg key. The key has no passphrase because bridge doesnt work with one so the server login itself is the protection.
+
+Logged in through bridges cli and let the mailbox sync which took a while. After that i turned it into a systemd user service so it runs in the background without a terminal open. `enable` makes it start at boot, `--now` starts it right away and `linger` keeps it running even when i log out of ssh. Tested it with a reboot and it came back up on its own.
+
+Went with native install and systemd instead of docker because there is no official docker image and bridge handles my decrypted mail, so i didnt want to trust a third party image with that.
+
+Result: bridge runs 24/7, survives reboots and logouts and only listens on localhost, port 1143 for reading mail (IMAP) and 1025 for sending (SMTP).
+
+Next up is the mail sorter, small python script connecting to the bridge and sorting my job mail into confirmations, rejections and actual human feedback and job listings.
+
+## Mail sorter
+
