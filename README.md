@@ -1,55 +1,44 @@
-# Project-owed
-Turning employer silence into answers: feedback requests and GDPR data access requests for job seekers
+# Project-owed (Application tracker)
 
-The initial problem: Unemployment.
+A self hosted tool that sorts my job application mail into folders through Proton Mail Bridge, building toward a simple job tracker.
 
-I have been applying for jobs for a bit over a month now and while ive gotten actual constructive feedback from just 2 companies there is silence on 90% on them and the only reason i got any feedback in the first place was because i asked for it specifically.
+## Contents
 
-So i started thinking on building something for myself where it automatically categorises jobs ive already applied to, jobs i heard back from with positive responses, and trash job responses with automatic replies and feedback where i wasnt selected.
+- [Idea in short](#idea-in-short)
+- [How it started](#how-it-started)
+- [Building the idea itself](#building-the-idea-itself)
+- [Proton mail bridge on the server](#proton-mail-bridge-on-the-server)
+- [Mail sorter](#mail-sorter)
+- [Dry run tests](#dry-run-tests)
+- [Running the sorter](#running-the-sorter)
 
-Another thing i thought on is the other few times ive been unemployed and struggles i personally faced and what others have been facing and job market overall.
+## Idea in short
 
-So i went down the rabbit hole and realised that 94% of people who apply to jobs actually want real feedback from the potential employer, something that i consider a very basic thing to do and yet? No one does it at scale.
+**Problem:** my job applications disappear into my inbox. Confirmations, rejections, real replies, job alerts and portal spam are all mixed together, so i cant tell who answered and who stayed silent.
 
-Most job seekers get ghosted and almost nobody gets feedback unless you ask for it specifically and even then there is a good chance you wont get any.
+**Solution:** a sorter that reads my mail through Proton Bridge and files each job email into one folder per type, with a log of every copy it makes.
 
-Then eventually i came across a post on linkedin from April earlier this year by Amanda Lamont:
+**Honest promise:** it sorts what its seen so far, and anything unclear goes to a review folder instead of being guessed. It isnt perfect and im fixing it as real mail shows me where it fails.
 
-https://www.linkedin.com/posts/ajlamont_i-submitted-a-gdpr-subject-access-request-share-7449691508812804096-An04/
+**First user:** myself.
 
-The takeaway from this is the following: After 6 hours of interviews and case study with no feedback, she didnt get the job.
+I have been applying for jobs for a bit over a month and got real feedback from just 2 companies, the rest is silence. Proton filters couldnt help since they cant read email bodies, so i built this.
 
-So what did she do? She used GDPR data access request to get her interview records from the company which then showed that the entire panel had voted to hire her and that a single directors note about her career history was what blocked it, the blocker was that she worked for a startup at one point in her career.
+[Back to top](#contents)
 
-Another similar case happend in germany and it went to labour court and the company had to pay them around 5000 Eur since they handled that data request poorly.
+## How it started
 
-This gave me an idea to expand on it: In the EU you are legally entitled to the data a company holds on you, even if you havent worked there, including recruiter notes and scores. Amanda used exactly that: Article 15 of GDPR in the EU.
+This started as something bigger: feedback requests and GDPR data access requests to companies that ignored me, after reading about Amanda Lamonts post about it: [See here](https://lnkd.in/p/dj5g6bbS) . I checked the legal side and found enough risk to drop it, so the mail sorter underneath became the project instead.
 
-So my approach to this is the following: Wait for the deadline where the job listing expires > ask politely for feedback > request your data if you are ignored > track deadline, send reminders > escalate if needed. Where? Data protection inspectorate.
+Ill make it a bit more simple for myself, instead of going for the GDPR version, ill just automate tracking the applications i havent heard back from with reminders, alerts and drafts for asking feedback specifically.
 
-Checked the legal ground properly. Official EU guidance names interview notes explicitly and Estonian law adds a right to a written explanation when discrimination is genuinely suspected. 
-
-My motivation with it is not to make any money, im building it for myself and other people in the same position as me because silence after an application is unfair even if i can understand that there may be a vast amount of candidates. The law however already says that we are owed an answer.
-
-## Idea itself in short
-
-**Problem:** Most job seekers get ghosted and almost nobody gets a feedback
-
-**Solution:** Feedback ladder, polite request first, then data access request if ignored, with deadlines, reminders and escalation tracked for you. 
-
-**Honest promise:** Not to "find out why" but "get everything they wrote down about you"
-
-**First user:** Obviously myself
-
-I have initial doc with other caveats like how long employers are actually holding onto your data if you have only applied to a company and never work there, employers can extend deadline after data request, legally they are obligated to hand over everything about you in the first 30 days since the request but they can extend it for up to 2 months. 
-
-Companies have different retention policies when it comes to data so i intend to build a scraper that scans job listings policy about it as well, if it doesnt find anything about it there, ill find a way to get that information from companies own website and policy which is public information.
+[Back to top](#contents)
 
 ## Building the idea itself
 
 Ive set up tools on my server so here im gonna explain each step what im building, key commands and decisions i made during and overall progress in plain english, while also having a `BUILD_LOG.md` at the root.
 
-A week ago i created a simple tool for myself using bpnote and Atuin. Basically Atuin records every command in the scoped path where i do my work, and when i enter `bp` it will then link to claude and write a simple build log with all commands ive used so far, log them in the build log for raw format, since i got annoyed with documentation by explcitly going block for block and it started to take away too much time from me, felt like most of my work was documenting instead of implementing.
+A week ago i created a simple tool for myself using bpnote and Atuin. Basically Atuin records every command in the scoped path where i do my work, and when i enter `bp` it will then link to claude and write a simple build log with all commands ive used so far, log them in the build log for raw format, since i got annoyed with documenting commands specifically by explcitly going block for block and it started to take away too much time from me, felt like most of my work was documenting instead of implementing.
 
 Current progress, repo done, secret scanning and push protection, `.gitignore` (mail data, secrets, terraform, evidence/), gitleaks pre-commit on both PC and server.
 
@@ -58,6 +47,8 @@ Tested the buildproof tool, only captures commands run inside `~/Project-owed`.
 Proton bridge on the server is installed and credential store set up, logged in and mailbox now synced. Bridge service file is written but not enabled as of yet. 
 
 My current goal is to have the server working and automating emails like clockwork.
+
+[Back to top](#contents)
 
 ## Proton mail bridge on the server
 
@@ -71,7 +62,17 @@ Went with native install and systemd instead of docker because there is no offic
 
 Result: bridge runs 24/7, survives reboots and logouts and only listens on localhost, port 1143 for reading mail (IMAP) and 1025 for sending (SMTP).
 
+![Bridge running as a systemd user service](screenshots/bridge-running.PNG)
+
+started at boot and still up a day later.
+
+![Bridge listening on localhost only](screenshots/bridge-localhost-listen.PNG)
+
+every port is bound to 127.0.0.1. The two code entries are the vs code remote ssh helper, also local.
+
 Next up is the mail sorter, small python script connecting to the bridge and sorting my job mail into confirmations, rejections and actual human feedback and job listings.
+
+[Back to top](#contents)
 
 ## Mail sorter
 
@@ -80,7 +81,6 @@ Initially i had proton set with different labels and folders for filtering, howe
 It kept missing stuff or sorting junk into wrong place. 
 
 Now that the bridge was running, my script could read full emails so i went about it properly: Look at my real mail first, then write rules based on that instead of guessing keywords. 
-
 
 The plan is layered rules from most certain to least: bulk mail (has an unsubscribe header) goes to job listings, then known senders like cv keskus, cv.ee, linkedin and hiring systems, then phrases in the body. Anything the script isnt sure about goes into a review folder instead of being guessed since wrong sorting is worse than no sorting. I also want to hand label a bunch of emails and measure how many the script gets right before it moves anything.
 
@@ -111,8 +111,6 @@ Made a script to make narrow it down properly with keywords specifically when yo
 Ran the script on the server to see how much it would narrow it down. Script returned with 574 possible job emails out of 2127. 
 
 Needed to narrow it down further. So created a script that uses `parseaddr` which pulls plain email address out of sender, takes the part after `@` then counts how often each domain appears and prints the top 40. 
-
-///screenshot of hiring systems here////
 
 Linkedin at 495 out of 574 now i knew this was pretty much just noise, however somewhere in there are "application sent/ viewed" alert emails as well and maybe few rejections, needs its own breakdown by subject.
 
@@ -148,6 +146,8 @@ With the domain lists and folders in place the sorter now has everything it need
 
 Next was testing the scripts before letting it touch the mailbox itself.
 
+[Back to top](#contents)
+
 ## Dry run tests
 
 Before letting the script move anything i built a dry run version. It goes through last 90 days (started applying close to 2 months ago but went for 3 months just to be sure), decides which folder each job email belongs in and writes the decisions in the csv with a reason next to it but doesnt move anything, that way i could check every decision against what i actually know happened.
@@ -175,3 +175,45 @@ Bug of the session: a missing comma between two noise phrases. Python doesnt com
 After a few rounds the dry run matched what i know about my last 90 days: unclear emails went from 20 to 0 and every decision has a reason.
 
 Next step is running it for real so it actually moves mail into the folders.
+
+[Back to top](#contents)
+
+## Running the sorter
+
+Dry run was done so next was running it for real this time. First decision was copy instead of move. All my old mail got imported from gmail so it only lives in all mail, theres no inbox or archive folder to move it out of and all mail is a `read-only` view in bridge anyway. So the script copies each job email into its folder and never deletes or expunges anything, worst case is a wrong copy that i fix by hand.
+
+Targets are `Folders/` only never `Labels/`. From what i read, folders in bridge are exclusive and labels are additive and a move into a label can leave a message without any folder so the script only ever targets folders.
+
+Didnt write a new script the dry run got a real mode. Without anything extra it still only writes its decisions to a csv. With `--apply` it copies the mail and `--limit N` stops after N emails so i could test small. It also identifies emails by uid and not by their number in the list, because numbers can shift when something changes in the mailbox and then the script could hit the wrong email.
+
+Before copying it collects the message ids of everything already in the job folders and skips those, so running it twice cant copy the same email twice. Every copy gets logged in `data/moves_log.csv` with time, sender, subject, destination and reason, and the data folder is gitignored so none of it goes public. If a copy fails the script stops there instead of carrying on.
+
+Ran it with `--limit 1` first and good thing i did. The 1 email it copied was a rejection with a friendly subject, "thank you for applying", and the body said they went with other applicants. The sorter filed it as a confirmation. So the line above about the dry run matching what i know was too strong, it had only checked senders and subjects and never the bodies.
+
+Moved that email to rejections by hand and fixed the rules. Added more rejection phrases ("other applicants", "decided to proceed", "after thorough consideration" and similar), made the sorter read the first 1500 characters of the body instead of 600 so a rejection further down isnt missed and added a preview column to the dry run csv so i can read what the sorter actually read next to what it decided.
+
+Biggest risk is a friendly subject on an unfriendly body, so before going further i read the previews of all 13 emails it was about to call confirmations on. All 13 were real confirmations. Then `--limit 5`, checked each one in proton, then the full run.
+
+42 copies in total: 19 confirmations, 12 noise, 9 rejections, 1 progress and 1 feedback. That includes the 1 fixed by hand.
+
+![Log of every copy the sorter made](screenshots/summary-emails.PNG)
+
+counts from the moves log, split by folder.
+
+Second run straight after the full one, nothing left to plan and everything already filed, so it was safe to run as many times as i wanted.
+
+![Second run after the full run](screenshots/second-run.PNG)
+
+0 planned moves, all job mail already filed.
+
+Not perfect though. Some emails in rejections were actually feedback. The way to ask for feedback is to reply to the rejection email, so the answer quotes the rejection underneath, and the sorter saw rejection wording and filed the answer under rejections.
+
+Fix: it now checks if an email is part of a conversation before looking for rejection wording, and cuts off the quoted text first. Moved the 2 misfiled ones by hand. Havent tested the fix on a real reply yet, only that it runs without errors.
+
+![Email count per job folder](screenshots/sorter-folder-totals.PNG)
+
+how many emails sit in each job folder after the run.
+
+Next up: tests for the sorting rules with fake emails, including a reply that quotes a rejection, so i dont find mistakes by noticing them. After that run it on a schedule with a systemd timer.
+
+[Back to top](#contents)
