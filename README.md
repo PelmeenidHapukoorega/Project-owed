@@ -11,6 +11,7 @@ A self hosted tool that sorts my job application mail into folders through Proto
 - [Mail sorter](#mail-sorter)
 - [Dry run tests](#dry-run-tests)
 - [Running the sorter](#running-the-sorter)
+- [Splitting the rules from the mailbox code](#splitting-the-rules-from-the-mailbox-code)
 
 ## Idea in short
 
@@ -217,3 +218,18 @@ how many emails sit in each job folder after the run.
 Next up: tests for the sorting rules with fake emails, including a reply that quotes a rejection, so i dont find mistakes by noticing them. After that run it on a schedule with a systemd timer.
 
 [Back to top](#contents)
+
+## Splitting the rules from the mailbox code
+
+Moved all the sorting rules (word lists, domain lists and `classify`) out of the main script into their own file, `classifier.py`. The main script, `sort_dry_run.py`, keeps everything that touches the mailbox: connecting to bridge, reading mail, copying it and logging.
+
+Reason for it was testing. If for example a test imported the old script it would also connect to bridge and read my real mail. 
+
+`classifier.py` takes an email in and gives a folder out and never touches a mailbox, so a test can hand it a fake email and check the answer. It also means one place for the rules, so i cant fix a rule in one file and forget the other.
+
+Just a move with no behavior change. 
+
+[Back to top](#contents)
+
+## Testing sorter with fake emails
+
